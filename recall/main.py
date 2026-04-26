@@ -1,3 +1,4 @@
+import sys
 import typer
 from typing import Optional
 from rich.console import Console
@@ -7,6 +8,14 @@ from rich.text import Text
 from rich import box
 from rich.syntax import Syntax
 from rich.prompt import Confirm
+
+# Fix for Windows console emoji crashes (forces UTF-8 output)
+if sys.stdout.encoding.lower() != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
 
 from recall import db, ai
 from recall.models import SavedCommand
