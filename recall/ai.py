@@ -226,14 +226,71 @@ Respond ONLY with valid JSON in this format:
 ]
 
 Rules:
-- Each command must be copy-pasteable as-is (use <placeholder> ONLY for user-specific values like passwords, IPs, or names)
-- NEVER use placeholders for the CLI tool itself. Use concrete, real tools only (e.g. `docker`, `powershell`, `curl`)
+- Each command must be copy-pasteable as-is.
+- CRITICAL: Any command that WRITES or SETS a user-specific value (name, email, password, username, path, token, IP, etc.)
+  MUST include a <placeholder> for that value. Example: `git config --global user.name "<Your Name>"`.
+  A command like `git config --global user.name` with NO value is WRONG — it only reads, not writes.
+- Use <placeholder> ONLY for user-supplied values, never for the CLI tool name itself.
+- NEVER use placeholders for the CLI tool itself. Use concrete, real tools only (e.g. `docker`, `powershell`, `curl`).
 - NEVER invent URLs, scripts, or packages that don't exist. Use well-known tools and official images.
 - For container/server workloads, use `docker` commands with official Docker Hub images.
 - Assume the user is on Windows with Docker Desktop installed unless otherwise stated.
-- Order steps so each one builds on the previous ones
-- Keep each explanation under 15 words
-- Respond ONLY with the JSON array, no text or markdown outside it"""
+- Order steps so each one builds on the previous ones.
+- Keep each explanation under 15 words.
+- Respond ONLY with the JSON array, no text or markdown outside it."""
+
+
+# ── Pipeline step validator ────────────────────────────────────────────────────
+
+# Patterns: (regex that matches a bare setter, placeholder to append)
+_SETTER_FIXES: list[tuple[re.Pattern, str]] = [
+    # git config --global user.name  (no value)
+    (re.compile(r'^git\s+config\s+--global\s+user\.name\s*$'),   'git config --global user.name "<Your Name>"'),
+    # git config --global user.email  (no value)
+    (re.compile(r'^git\s+config\s+--global\s+user\.email\s*$'),  'git config --global user.email "<your@email.com>"'),
+    # git config --global <any-key>  (no value)
+    (re.compile(r'^(git\s+config\s+(?:--global\s+|--local\s+|--system\s+)?[\w.]+)\s*$'),
+     None),   # generic fallback — handled below
+    # npm config set <key>  (no value)
+    (re.compile(r'^npm\s+config\s+set\s+(\S+)\s*$'), None),
+]
+
+
+def _fix_pipeline_steps(steps: list[dict]) -> list[dict]:
+    """Post-process AI-generated steps to catch setter commands missing their value."""
+    import re as _re
+
+    # Matches an empty value: '' or "" or nothing at end
+    _EMPTY_VAL = r"""(?:\s*(?:''|""|\s))?$"""
+
+    for step in steps:
+        cmd = step.get("command", "").strip()
+
+        # git config [--scope] user.name  with no/empty value → inject placeholder
+        if _re.match(
+            r'''^git\s+config\s+(?:--\w+\s+)?user\.name(?:\s+(?:''|""))?$''', cmd
+        ):
+            base = _re.sub(r"""\s*(?:''|"")$""", "", cmd)
+            step["command"] = base + ' "<Your Name>"'
+            continue
+
+        # git config [--scope] user.email  with no/empty value → inject placeholder
+        if _re.match(
+            r'''^git\s+config\s+(?:--\w+\s+)?user\.email(?:\s+(?:''|""))?$''', cmd
+        ):
+            base = _re.sub(r"""\s*(?:''|"")$""", "", cmd)
+            step["command"] = base + ' "<your@email.com>"'
+            continue
+
+        # Generic: git config [--scope] <key>  with no/empty value → inject placeholder
+        m = _re.match(
+            r'''^(git\s+config(?:\s+--\w+)?\s+[\w.]+)(?:\s+(?:''|""))?$''', cmd
+        )
+        if m:
+            step["command"] = m.group(1) + ' "<value>"'
+            continue
+
+    return steps
 
 
 def ask_pipeline(goal: str) -> list[dict]:
@@ -242,7 +299,8 @@ def ask_pipeline(goal: str) -> list[dict]:
     for attempt in range(3):
         raw = _call(PIPELINE_SYSTEM, goal)
         try:
-            return _parse_json(raw)
+            steps = _parse_json(raw)
+            return _fix_pipeline_steps(steps)
         except Exception as e:
             last_err = e
     raise ValueError(f"AI returned invalid JSON after 3 attempts: {last_err}")
