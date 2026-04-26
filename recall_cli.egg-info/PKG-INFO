@@ -1,0 +1,95 @@
+Metadata-Version: 2.4
+Name: recall-cli
+Version: 0.1.0
+Summary: AI-powered command assistant for developers
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: typer>=0.12.0
+Requires-Dist: anthropic>=0.25.0
+Requires-Dist: openai>=1.30.0
+Requires-Dist: rich>=13.7.0
+Requires-Dist: python-dotenv>=1.0.0
+
+# 🧠 Recall
+
+> AI-powered command assistant for developers. Never forget a CLI command again.
+
+---
+
+## What it does
+
+Recall helps you find and remember CLI commands using plain English. Powered by Claude AI.
+
+```bash
+# Don't remember the git command? Just ask:
+recall ask "squash last 3 commits"
+→ git rebase -i HEAD~3
+
+# Found a command online and don't understand it?
+recall explain "docker run -it --rm -v $(pwd):/app ubuntu bash"
+
+# Save commands you use often:
+recall save "git stash pop" --desc "restore last stash" --tags git,stash
+
+# Search your personal library:
+recall search "stash"
+```
+
+---
+
+## Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/yourusername/recall.git
+cd recall
+
+# Install
+pip install -e .
+
+# Set your Anthropic API key
+export ANTHROPIC_API_KEY=your_key_here
+```
+
+---
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `recall ask "<query>"` | Convert natural language to a command |
+| `recall explain "<command>"` | Understand what a command does |
+| `recall save "<command>"` | Save a command to your library |
+| `recall search "<query>"` | Search your saved commands |
+| `recall list` | List all saved commands |
+| `recall list --tool git` | Filter by tool |
+| `recall delete <id>` | Delete a saved command |
+
+---
+
+## Options
+
+| Flag | Description |
+|---|---|
+| `--save` / `-s` | Auto-save the result after `ask` or `explain` |
+| `--tool` | Filter list by tool name (git, docker, azure...) |
+| `--yes` / `-y` | Skip confirmation prompts |
+
+---
+
+## Data
+
+All your saved commands are stored locally in `~/.recall/recall.db` (SQLite).
+
+---
+
+## Roadmap
+
+- [ ] Cloud sync across machines
+- [ ] Team shared libraries
+- [ ] Web dashboard
+- [ ] Shell autocomplete integration
+
+---
+
+Built with [Anthropic Claude](https://anthropic.com) + [Typer](https://typer.tiangolo.com) + [Rich](https://rich.readthedocs.io)
